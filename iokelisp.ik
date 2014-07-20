@@ -17,6 +17,7 @@ makeSym = method(s,
     symTable[s] = Sym mimic(s))
   symTable[s])
 
+sym_t = makeSym("t")
 sym_quote = makeSym("quote")
 
 Error = Origin mimic
@@ -144,6 +145,33 @@ printList = method(obj,
     "(" + ret + ")",
     "(" + ret + " . " + printObj(obj) + ")"))
 
+findVar = method(sym, env,
+  while(env kind?("Cons"),
+    alist = env car
+    while(alist kind?("Cons"),
+      if(alist car car == sym,
+        return alist car)
+      alist = alist cdr)
+    env = env cdr)
+  kNil)
+
+g_env = makeCons(kNil, kNil)
+
+addToEnv = method(sym, val, env,
+  env car = makeCons(makeCons(sym, val), env car))
+
+eval1 = method(obj, env,
+  if(obj kind?("Nil") || obj kind?("Num") || obj kind?("Error"),
+    return obj)
+  if(obj kind?("Sym"),
+    bind = findVar(obj, env)
+    if(bind == kNil,
+      return Error mimic(obj data + " has no value"),
+      return bind cdr))
+  Error mimic("noimpl"))
+
+addToEnv(sym_t, sym_t, g_env)
+
 ireader = java:io:InputStreamReader new(java:lang:System field:in)
 breader = java:io:BufferedReader new(ireader)
 loop(
@@ -152,4 +180,4 @@ loop(
   if(line == nil,
     break)
   line = line asText  ; Covert java.lang.String -> Text.
-  printObj(read(line)[0]) println)
+  printObj(eval1(read(line)[0], g_env)) println)
