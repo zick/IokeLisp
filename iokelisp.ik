@@ -20,6 +20,7 @@ makeSym = method(s,
 sym_t = makeSym("t")
 sym_quote = makeSym("quote")
 sym_if = makeSym("if")
+sym_lambda = makeSym("lambda")
 
 Error = Origin mimic
 Error initialize = method(s, @data = s)
@@ -34,6 +35,14 @@ makeCons = method(a, d,
 Subr = Origin mimic
 Subr call = method(args,
   Error mimic("invalid subr"))
+
+Expr = Origin mimic
+Expr initialize = method(a, b, e,
+  @args = a
+  @body = b
+  @env = e)
+makeExpr = method(args, env,
+  Expr mimic(safeCar(args), safeCdr(args), env))
 
 safeCar = method(obj,
   if(obj kind?("Cons"),
@@ -53,6 +62,14 @@ nreverse = method(lst,
     ret = lst
     lst = tmp)
   ret)
+
+pairlis = method(lst1, lst2,
+  ret = kNil
+  while(lst1 kind?("Cons") && lst2 kind?("Cons"),
+    ret = makeCons(makeCons(lst1 car, lst2 car), ret)
+    lst1 = lst1 cdr
+    lst2 = lst2 cdr)
+  nreverse(ret))
 
 isSpace = method(c,
   c == 0x09 || c == 0x0a || c == 0x0d || c == 0x20)
@@ -193,6 +210,8 @@ eval1 = method(obj, env,
       c kind?("Error"), return c,
       c == kNil, return eval1(safeCar(safeCdr(safeCdr(args))), env),
       true, return eval1(safeCar(safeCdr(args)), env)))
+  if(op == sym_lambda,
+    return makeExpr(args, env))
   apply(eval1(op, env), evlis(args, env)))
 
 evlis = method(lst, env,
@@ -205,11 +224,22 @@ evlis = method(lst, env,
     lst = lst cdr)
   nreverse(ret))
 
+progn = method(body, env,
+  ret = kNil
+  while(body kind?("Cons"),
+    ret = eval1(body car, env)
+    if(ret kind?("Error"),
+      return ret)
+    body = body cdr)
+  ret)
+
 apply = method(fn, args,
   cond(
     fn kind?("Error"), return fn,
     args kind?("Error"), return args,
     fn kind?("Subr"), return fn call(args),
+    fn kind?("Expr"),
+      return progn(fn body, makeCons(pairlis(fn args, args), fn env)),
     true, return Error mimic(printObj(fn) + " is not function")))
 
 SubrCar = Subr mimic
