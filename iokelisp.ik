@@ -19,6 +19,7 @@ makeSym = method(s,
 
 sym_t = makeSym("t")
 sym_quote = makeSym("quote")
+sym_if = makeSym("if")
 
 Error = Origin mimic
 Error initialize = method(s, @data = s)
@@ -29,6 +30,20 @@ Cons initialize = method(a, d,
   @cdr = d)
 makeCons = method(a, d,
   Cons mimic(a, d))
+
+Subr = Origin mimic
+Subr call = method(args,
+  Error mimic("invalid subr"))
+
+safeCar = method(obj,
+  if(obj kind?("Cons"),
+    obj car,
+    kNil))
+
+safeCdr = method(obj,
+  if(obj kind?("Cons"),
+    obj cdr,
+    kNil))
 
 nreverse = method(lst,
   ret = kNil
@@ -168,8 +183,50 @@ eval1 = method(obj, env,
     if(bind == kNil,
       return Error mimic(obj data + " has no value"),
       return bind cdr))
-  Error mimic("noimpl"))
+  op = safeCar(obj)
+  args = safeCdr(obj)
+  if(op == sym_quote,
+    return safeCar(args))
+  if(op == sym_if,
+    c = eval1(safeCar(args), env)
+    cond(
+      c kind?("Error"), return c,
+      c == kNil, return eval1(safeCar(safeCdr(safeCdr(args))), env),
+      true, return eval1(safeCar(safeCdr(args)), env)))
+  apply(eval1(op, env), evlis(args, env)))
 
+evlis = method(lst, env,
+  ret = kNil
+  while(lst kind?("Cons"),
+    elm = eval1(lst car, env)
+    if(elm kind?("Error"),
+      return elm)
+    ret = makeCons(elm, ret)
+    lst = lst cdr)
+  nreverse(ret))
+
+apply = method(fn, args,
+  cond(
+    fn kind?("Error"), return fn,
+    args kind?("Error"), return args,
+    fn kind?("Subr"), return fn call(args),
+    true, return Error mimic(printObj(fn) + " is not function")))
+
+SubrCar = Subr mimic
+SubrCar call = method(args,
+  safeCar(safeCar(args)))
+
+SubrCdr = Subr mimic
+SubrCdr call = method(args,
+  safeCdr(safeCar(args)))
+
+SubrCons = Subr mimic
+SubrCons call = method(args,
+  makeCons(safeCar(args), safeCar(safeCdr(args))))
+
+addToEnv(makeSym("car"), SubrCar, g_env)
+addToEnv(makeSym("cdr"), SubrCdr, g_env)
+addToEnv(makeSym("cons"), SubrCons, g_env)
 addToEnv(sym_t, sym_t, g_env)
 
 ireader = java:io:InputStreamReader new(java:lang:System field:in)
