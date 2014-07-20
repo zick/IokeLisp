@@ -22,6 +22,7 @@ sym_quote = makeSym("quote")
 sym_if = makeSym("if")
 sym_lambda = makeSym("lambda")
 sym_defun = makeSym("defun")
+sym_setq = makeSym("setq")
 
 Error = Origin mimic
 Error initialize = method(s, @data = s)
@@ -218,6 +219,14 @@ eval1 = method(obj, env,
     sym = safeCar(args)
     addToEnv(sym, expr, g_env)
     return sym)
+  if(op == sym_setq,
+    val = eval1(safeCar(safeCdr(args)), env)
+    sym = safeCar(args)
+    bind = findVar(sym, env)
+    if(bind == kNil,
+      addToEnv(sym, val, g_env),
+      bind cdr = val)
+    return val)
   apply(eval1(op, env), evlis(args, env)))
 
 evlis = method(lst, env,
