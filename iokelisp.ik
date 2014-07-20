@@ -17,6 +17,8 @@ makeSym = method(s,
     symTable[s] = Sym mimic(s))
   symTable[s])
 
+sym_quote = makeSym("quote")
+
 Error = Origin mimic
 Error initialize = method(s, @data = s)
 
@@ -24,6 +26,17 @@ Cons = Origin mimic
 Cons initialize = method(a, d,
   @car = a
   @cdr = d)
+makeCons = method(a, d,
+  Cons mimic(a, d))
+
+nreverse = method(lst,
+  ret = kNil
+  while(lst kind?("Cons"),
+    tmp = lst cdr
+    lst cdr = ret
+    ret = lst
+    lst = tmp)
+  ret)
 
 isSpace = method(c,
   c == 0x09 || c == 0x0a || c == 0x0d || c == 0x20)
@@ -85,11 +98,51 @@ read = method(str,
     str[0] == kRPar,
       [Error mimic("invalid syntax: " + str), ""],
     str[0] == kLPar,
-      [Error mimic("noimpl"), ""],
+      readList(str[1...str length]),
     str[0] == kQuote,
-      [Error mimic("noimpl"), ""],
+      tmp = read(str[1...str length])
+      [makeCons(sym_quote, makeCons(tmp[0], kNil)), tmp[1]],
     true,
       readAtom(str)))
+
+readList = method(str,
+  ret = kNil
+  loop(
+    str = skipSpaces(str)
+    if(str length == 0,
+      return [Error mimic("unfinished parenthesis"), ""])
+    if(str[0] == kRPar,
+      break)
+    tmp = read(str)
+    if(tmp[0] kind?("Error"),
+      return tmp)
+    ret = makeCons(tmp[0], ret)
+    str = tmp[1])
+  [nreverse(ret), str[1...str length]])
+
+printObj = method(obj,
+  cond(
+    obj kind?("Nil"), "nil",
+    obj kind?("Num"), obj data asText,
+    obj kind?("Sym"), obj data,
+    obj kind?("Error"), "<error: " + obj data + ">",
+    obj kind?("Cons"), printList(obj),
+    obj kind?("Subr"), "<subr>",
+    obj kind?("Expr"), "<expr>",
+    true, "<unknown>"))
+
+printList = method(obj,
+  ret = ""
+  first = true
+  while(obj kind?("Cons"),
+    if(first,
+      first = false,
+      ret += " ")
+    ret += printObj(obj car)
+    obj = obj cdr)
+  if(obj == kNil,
+    "(" + ret + ")",
+    "(" + ret + " . " + printObj(obj) + ")"))
 
 ireader = java:io:InputStreamReader new(java:lang:System field:in)
 breader = java:io:BufferedReader new(ireader)
@@ -99,4 +152,4 @@ loop(
   if(line == nil,
     break)
   line = line asText  ; Covert java.lang.String -> Text.
-  read(line)[0] data println)
+  printObj(read(line)[0]) println)
