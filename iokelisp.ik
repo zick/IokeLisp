@@ -269,9 +269,70 @@ SubrCons = Subr mimic
 SubrCons call = method(args,
   makeCons(safeCar(args), safeCar(safeCdr(args))))
 
+SubrEq = Subr mimic
+SubrEq call = method(args,
+  x = safeCar(args)
+  y = safeCar(safeCdr(args))
+  if(x kind?("Num") && y kind?("Num") && x data == y data,
+    sym_t,
+    if(x == y,
+      sym_t,
+      kNil)))
+
+SubrAtom = Subr mimic
+SubrAtom call = method(args,
+  if(safeCar(args) kind?("Cons"), kNil, sym_t))
+
+SubrNumberp = Subr mimic
+SubrNumberp call = method(args,
+  if(safeCar(args) kind?("Num"), sym_t, kNil))
+
+SubrSymbolp = Subr mimic
+SubrSymbolp call = method(args,
+  if(safeCar(args) kind?("Sym"), sym_t, kNil))
+
+SubrAddOrMul = Subr mimic
+SubrAddOrMul call = method(args,
+  ret = @init_val
+  while(args kind?("Cons"),
+    if(!(args car kind?("Num")),
+      return Error mimic("wrong type"))
+    ret = @calc(ret, args car data)
+    args = args cdr)
+  Num mimic(ret))
+SubrAdd = SubrAddOrMul mimic
+SubrAdd init_val = 0
+SubrAdd calc = method(x, y, x + y)
+SubrMul = SubrAddOrMul mimic
+SubrMul init_val = 1
+SubrMul calc = method(x, y, x * y)
+
+SubrSubOrDivOrMod = Subr mimic
+SubrSubOrDivOrMod call = method(args,
+  x = safeCar(args)
+  y = safeCar(safeCdr(args))
+  if(!(x kind?("Num")) || !(y kind?("Num")),
+    return Error miimc("wrong type"))
+  Num mimic(@calc(x data, y data)))
+SubrSub = SubrSubOrDivOrMod mimic
+SubrSub calc = method(x, y, x - y)
+SubrDiv = SubrSubOrDivOrMod mimic
+SubrDiv calc = method(x, y, x / y)
+SubrMod = SubrSubOrDivOrMod mimic
+SubrMod calc = method(x, y, x % y)
+
 addToEnv(makeSym("car"), SubrCar, g_env)
 addToEnv(makeSym("cdr"), SubrCdr, g_env)
 addToEnv(makeSym("cons"), SubrCons, g_env)
+addToEnv(makeSym("eq"), SubrEq, g_env)
+addToEnv(makeSym("atom"), SubrAtom, g_env)
+addToEnv(makeSym("numberp"), SubrNumberp, g_env)
+addToEnv(makeSym("symbolp"), SubrSymbolp, g_env)
+addToEnv(makeSym("+"), SubrAdd, g_env)
+addToEnv(makeSym("*"), SubrMul, g_env)
+addToEnv(makeSym("-"), SubrSub, g_env)
+addToEnv(makeSym("/"), SubrDiv, g_env)
+addToEnv(makeSym("mod"), SubrMod, g_env)
 addToEnv(sym_t, sym_t, g_env)
 
 ireader = java:io:InputStreamReader new(java:lang:System field:in)
